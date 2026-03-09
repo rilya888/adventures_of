@@ -20,7 +20,17 @@
 1. [app/docs/REPLICATE_SETUP.md](docs/REPLICATE_SETUP.md) — `REPLICATE_API_TOKEN` в web + worker
 2. Без токена — placeholder-изображения
 
-## CLI
+## GitHub Actions (auto-deploy)
+
+При push в `main` деплой запускается автоматически.
+
+**Настройка (один раз):**
+
+1. Railway: Project → Settings → Tokens → Generate
+2. GitHub: Repo → Settings → Secrets and variables → Actions → New repository secret
+3. Name: `RAILWAY_TOKEN`, Value: токен из шага 1
+
+## CLI (ручной деплой)
 
 ```bash
 cd app
