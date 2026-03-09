@@ -1,0 +1,10 @@
+# Use with: railway up --no-gitignore
+# Root .gitignore excludes lib/ - this overrides by using only these rules
+node_modules
+.next
+.env*
+!.env.example
+*.log
+.DS_Store
+coverage
+.vercel
