@@ -15,7 +15,7 @@ import {
   type Blueprint,
   type Beat,
 } from "@/lib/ai/orchestrator";
-import { IMAGE_GENERATION_RETRY_COUNT } from "@/lib/constants";
+import { IMAGE_GENERATION_RETRY_COUNT, DEFAULT_CAPTION_POSITION } from "@/lib/constants";
 import { withRetry } from "@/lib/retry";
 
 export async function processJob(jobId: string): Promise<{ success: boolean; imageCount: number }> {
@@ -143,7 +143,15 @@ export async function processJob(jobId: string): Promise<{ success: boolean; ima
         await db.query(
           `INSERT INTO books (story_id, user_id, asset_ids, metadata)
            VALUES ($1, $2, '{}', $3)`,
-          [story.id, job.user_id, JSON.stringify({ pages: totalBeats, image_urls: generatedImages })]
+          [
+            story.id,
+            job.user_id,
+            JSON.stringify({
+              pages: totalBeats,
+              image_urls: generatedImages,
+              layout: { caption_position: DEFAULT_CAPTION_POSITION },
+            }),
+          ]
         );
 
         await db.query(

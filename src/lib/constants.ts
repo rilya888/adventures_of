@@ -48,6 +48,9 @@ export const PLACEHOLDER_FALLBACK_ENABLED =
 /** Full book page count (2 beats = 2 texts + 2 images). For future: process.env.FULL_BOOK_PAGE_COUNT ?? 2 */
 export const FULL_BOOK_PAGE_COUNT = 2;
 
+/** Default caption position for comic layout. Used by BookStep, download route, process-job. */
+export const DEFAULT_CAPTION_POSITION = "right" as const;
+
 /** Max retries for transient image generation failures (network, timeout, 5xx). */
 export const IMAGE_GENERATION_RETRY_COUNT = parseInt(
   process.env.IMAGE_GENERATION_RETRY_COUNT ?? "2",

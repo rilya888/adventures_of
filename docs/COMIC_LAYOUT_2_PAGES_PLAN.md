@@ -81,33 +81,37 @@ flowchart TD
 
 ---
 
-## 5. Comic layout: подпись сверху/снизу
+## 5. Comic layout: подпись на изображении
 
 ### 5.1 ComicPageLayout
 
-**Новый файл:** `app/src/app/create/components/ComicPageLayout.tsx`
+**Файл:** `app/src/app/create/components/ComicPageLayout.tsx`
 
-- Props: `imageUrl`, `caption`, `captionPosition?: "top" | "bottom"` (по умолчанию `"bottom"`).
-- Разметка: контейнер `relative`, внутри `img` и `div` с подписью (absolute top/bottom).
-- Стили: подпись в рамке, комиксный шрифт (`"Comic Sans MS", cursive`), padding, фон.
-- **Пустая подпись:** если `caption` пустая — не рендерить блок подписи.
-- **Responsive:** на мобильных — уменьшить font-size и padding подписи.
+- Props: `imageUrl`, `caption`, `captionPosition?: "top" | "bottom" | "right" | "left"` (по умолчанию `DEFAULT_CAPTION_POSITION` = `"right"`).
+- **Right/left:** текст в колонке на изображении (overlay справа/слева), тёмный полупрозрачный фон, разбиение на абзацы по `\n\n`, `white-space: pre-line` для переносов.
+- **Top/bottom:** полоса по краю (как раньше), светлый фон.
+- **Пустая подпись:** не рендерить блок подписи.
+- **Семантика:** `<figure>` + `<figcaption>`.
 
 ### 5.2 BookStep
 
 **Файл:** `app/src/app/create/components/BookStep.tsx`
 
-- Заменить текущий layout на `ComicPageLayout`.
-- Использовать `captionPosition="bottom"` по умолчанию.
-- Передавать `beat.generated_image_url` и `beat.generated_text` в `ComicPageLayout`.
+- Использовать `captionPosition={DEFAULT_CAPTION_POSITION}` (по умолчанию `"right"`).
 
 ### 5.3 Download route
 
 **Файл:** `app/src/app/api/orders/[id]/download/route.ts`
 
-- Изменить HTML: каждая страница — контейнер с картинкой и overlay-подписью (снизу).
-- CSS: `.page { position: relative; }`, `.caption { position: absolute; bottom: 0; ... }`.
-- Шрифт подписи: comic-style (`"Comic Sans MS", cursive`).
+- Читать `book.metadata.layout.caption_position`; fallback — `DEFAULT_CAPTION_POSITION`.
+- CSS для всех позиций: `.caption-right`, `.caption-left`, `.caption-top`, `.caption-bottom`.
+- Разбиение на абзацы, `white-space: pre-line` для right/left.
+
+### 5.4 books.metadata
+
+**Файл:** `app/src/lib/process-job.ts`
+
+- При создании книги записывать `layout: { caption_position: DEFAULT_CAPTION_POSITION }` в `books.metadata`.
 
 ---
 
@@ -131,17 +135,15 @@ flowchart TD
 
 | Файл | Изменение |
 |------|-----------|
-| `constants.ts` | Добавить `FULL_BOOK_PAGE_COUNT = 2` |
+| `constants.ts` | `FULL_BOOK_PAGE_COUNT`, `DEFAULT_CAPTION_POSITION = "right"` |
 | `blueprint.ts` | `createFullBlueprint` возвращает 2 beat'а |
-| `blueprint-server.ts` | Slice template beats до `FULL_BOOK_PAGE_COUNT`, пересчёт `page_index` |
+| `blueprint-server.ts` | Slice template beats до `FULL_BOOK_PAGE_COUNT` |
 | `approve/route.ts` | `total_count: fullBlueprint.beats.length` |
 | `useCreateFlow.ts` | Динамический `total_count` из job |
-| `ComicPageLayout.tsx` (новый) | Компонент comic layout с caption top/bottom |
-| `BookStep.tsx` | Использовать `ComicPageLayout` с `captionPosition="bottom"` |
-| `download/route.ts` | HTML с comic layout (caption overlay снизу) |
-| `blueprint.test.ts` | Обновить/добавить тесты под 2 beat'а |
-| `process-job.ts` | Обновить комментарий |
-| `orchestrator.ts` | Обновить комментарий |
+| `ComicPageLayout.tsx` | caption top/bottom/right/left, overlay на изображении |
+| `BookStep.tsx` | `captionPosition={DEFAULT_CAPTION_POSITION}` |
+| `download/route.ts` | CSS для всех позиций, чтение `book.metadata.layout` |
+| `process-job.ts` | `layout: { caption_position }` в `books.metadata` |
 
 ---
 
@@ -154,4 +156,4 @@ flowchart TD
 ## 10. Риски и решения
 
 - **Шаблоны:** slice(0,2) берёт только setup_1 и setup_2 — история обрывается. Решение: оставить slice, при необходимости позже добавить `short_beats` в config шаблонов.
-- **Позиция подписи:** `captionPosition` — настраиваемый prop (top/bottom), по умолчанию bottom.
+- **Позиция подписи:** `captionPosition` — настраиваемый prop (top/bottom/right/left). По умолчанию `"right"` — текст в колонке на изображении. Хранится в `books.metadata.layout.caption_position`.

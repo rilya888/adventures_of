@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { APP_URL, ORDER_STATUS } from "@/lib/constants";
+import { APP_URL, DEFAULT_CAPTION_POSITION, ORDER_STATUS } from "@/lib/constants";
 
 /**
  * GET /api/orders/[id]/download
@@ -38,8 +38,8 @@ export async function GET(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    const book = await db.queryOne<{ story_id: string }>(
-      "SELECT story_id FROM books WHERE id = $1 AND user_id = $2",
+    const book = await db.queryOne<{ story_id: string; metadata: unknown }>(
+      "SELECT story_id, metadata FROM books WHERE id = $1 AND user_id = $2",
       [order.book_id, user_id]
     );
 
@@ -61,6 +61,13 @@ export async function GET(
       generated_image_url?: string;
     }>;
 
+    const metadata = (book.metadata ?? {}) as { layout?: { caption_position?: string } };
+    const captionPosition =
+      metadata.layout?.caption_position ?? DEFAULT_CAPTION_POSITION;
+    const validPosition = ["top", "bottom", "right", "left"].includes(captionPosition)
+      ? captionPosition
+      : DEFAULT_CAPTION_POSITION;
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,8 +79,15 @@ export async function GET(
     h1 { font-size: 1.5rem; margin-bottom: 2rem; }
     .page { position: relative; margin-bottom: 2rem; border-radius: 8px; overflow: hidden; }
     .page img { display: block; max-width: 100%; height: auto; }
-    .caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 0.75rem 1rem; font-family: "Comic Sans MS", "Comic Neue", cursive; font-size: 0.875rem; line-height: 1.4; background: rgba(254, 249, 195, 0.95); color: #1c1917; border-top: 1px solid #fde68a; }
-    @media (min-width: 768px) { .caption { padding: 1rem 1.25rem; font-size: 1rem; } }
+    .caption { font-family: "Comic Sans MS", "Comic Neue", cursive; font-size: 0.875rem; line-height: 1.5; }
+    .caption-right, .caption-left { position: absolute; padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: white; display: flex; flex-direction: column; justify-content: center; white-space: pre-line; }
+    @supports not (backdrop-filter: blur(8px)) { .caption-right, .caption-left { background: rgba(0,0,0,0.5); } }
+    .caption-right { top: 1rem; right: 1rem; bottom: 1rem; width: 40%; max-width: 280px; }
+    .caption-left { top: 1rem; left: 1rem; bottom: 1rem; width: 40%; max-width: 280px; }
+    .caption-top, .caption-bottom { position: absolute; left: 0; right: 0; padding: 0.75rem 1rem; background: rgba(254,249,195,0.95); color: #1c1917; }
+    .caption-top { top: 0; border-bottom: 1px solid #fde68a; }
+    .caption-bottom { bottom: 0; border-top: 1px solid #fde68a; }
+    @media (min-width: 768px) { .caption { font-size: 1rem; padding: 1.25rem; } }
   </style>
 </head>
 <body>
@@ -84,11 +98,18 @@ export async function GET(
         const imgSrc = beat.generated_image_url
           ? (beat.generated_image_url.startsWith("/") ? APP_URL.replace(/\/$/, "") + beat.generated_image_url : beat.generated_image_url)
           : "";
-        const caption = beat.generated_text ? escapeHtml(beat.generated_text) : "";
+        const rawCaption = beat.generated_text?.trim() ?? "";
+        const captionHtml = rawCaption
+          ? rawCaption
+              .split(/\n\n+/)
+              .filter(Boolean)
+              .map((p) => `<p>${escapeHtml(p)}</p>`)
+              .join("")
+          : "";
         return `
   <div class="page">
     ${imgSrc ? `<img src="${escapeHtml(imgSrc)}" alt="Page" />` : ""}
-    ${caption ? `<div class="caption">${caption}</div>` : ""}
+    ${captionHtml ? `<div class="caption caption-${validPosition}">${captionHtml}</div>` : ""}
   </div>`;
       }
     )

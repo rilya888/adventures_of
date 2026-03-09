@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_CAPTION_POSITION } from "@/lib/constants";
 import { ComicPageLayout } from "./ComicPageLayout";
 import type { BookBeat } from "../types";
 
@@ -21,7 +22,7 @@ export function BookStep({ beats, bookId, error, loading, onPay, onStartOver }: 
           key={i}
           imageUrl={beat.generated_image_url ?? ""}
           caption={beat.generated_text}
-          captionPosition="bottom"
+          captionPosition={DEFAULT_CAPTION_POSITION}
           alt={`Page ${i + 1}`}
         />
       ))}
