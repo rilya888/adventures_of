@@ -3,7 +3,8 @@
  * Replaces Supabase Storage
  */
 
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function getS3(): S3Client {
   const endpoint = process.env.RAILWAY_BUCKET_ENDPOINT ?? process.env.S3_ENDPOINT;
@@ -47,5 +48,18 @@ export function getPublicUrl(key: string): string {
     return `${endpoint}/${BUCKET}/${key}`;
   }
   return `https://${BUCKET}.s3.amazonaws.com/${key}`;
+}
+
+/** Generate a presigned URL for reading a private object. Expires in 1 hour. */
+export async function getSignedReadUrl(key: string): Promise<string> {
+  const client = getS3();
+  const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+  return getSignedUrl(client, command, { expiresIn: 3600 });
+}
+
+/** Delete an object from storage. */
+export async function deleteFile(key: string): Promise<void> {
+  const client = getS3();
+  await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
 

@@ -7,6 +7,11 @@ import { Pool } from "pg";
 
 let pool: Pool | null = null;
 
+export interface DbTransaction {
+  query<T = unknown>(text: string, params?: unknown[]): Promise<T[]>;
+  queryOne<T = unknown>(text: string, params?: unknown[]): Promise<T | null>;
+}
+
 function getPool(): Pool {
   if (!pool) {
     const url = process.env.DATABASE_URL;
@@ -62,5 +67,30 @@ export const db = {
     const wherePlaceholders = whereParams.map((_, i) => `$${whereStart + i}`).join(" AND ");
     const text = `UPDATE ${table} SET ${setClause} WHERE ${wherePlaceholders}`;
     await this.query(text, [...setValues, ...whereParams]);
+  },
+
+  async withTransaction<T>(fn: (tx: DbTransaction) => Promise<T>): Promise<T> {
+    const client = await getPool().connect();
+    try {
+      await client.query("BEGIN");
+      const tx: DbTransaction = {
+        query: async <U>(text: string, params?: unknown[]): Promise<U[]> => {
+          const res = await client.query(text, params);
+          return (res.rows ?? []) as U[];
+        },
+        queryOne: async <U>(text: string, params?: unknown[]): Promise<U | null> => {
+          const res = await client.query(text, params);
+          return (res.rows?.[0] ?? null) as U | null;
+        },
+      };
+      const result = await fn(tx);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 };
